@@ -1,0 +1,16 @@
+[package]
+name = "rust-etcd3"
+version = "0.1.0"
+authors = ["Simon Walker <s.r.walker101@googlemail.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+tonic = "0.1.0-alpha.3"
+
+[build-dependencies]
+tonic-build = "0.1.0-alpha.3"
+
+[dev-dependencies]
+# tokio = "0.2.0-alpha.6"
