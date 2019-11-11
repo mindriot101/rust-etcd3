@@ -53,7 +53,7 @@ impl EtcdClient<tonic::transport::channel::Channel> {
         &mut self,
         key: K,
         value: V,
-    ) -> EtcdResult<()> {
+    ) -> EtcdResult<etcdserver::PutResponse> {
         let request = etcdserver::PutRequest {
             key: key.into(),
             value: value.into(),
@@ -62,40 +62,61 @@ impl EtcdClient<tonic::transport::channel::Channel> {
         };
 
         let response = self.kv_client.put(request).await?;
-        match response.metadata().get("grpc-status") {
-            Some(v) => {
-                if v == "0" {
-                    Ok(())
-                } else {
-                    Err(format!("grpc status code {:?}", v).into())
-                }
-            }
-            None => Ok(()),
-        }
+        Ok(response.into_inner())
     }
 
-    pub async fn get<K: Into<Vec<u8>>>(&mut self, key: K) -> EtcdResult<Vec<Vec<u8>>> {
+    pub async fn get<K: Into<Vec<u8>>>(&mut self, key: K) -> EtcdResult<etcdserver::RangeResponse> {
         let request = etcdserver::RangeRequest {
             key: key.into(),
             ..Default::default()
         };
         let response = self.kv_client.range(request).await?;
+        Ok(response.into_inner())
+    }
 
-        // Inline function to extract the values out of the range response
-        fn extract_values(response: tonic::Response<etcdserver::RangeResponse>) -> Vec<Vec<u8>> {
-            response.into_inner().kvs.iter().map(|kv| kv.value.clone()).collect()
-        }
+    pub async fn watch<K>(
+        &mut self,
+        key: K,
+    ) -> EtcdResult<tonic::Streaming<etcdserver::WatchResponse>>
+    where
+        K: Into<Vec<u8>> + Sync + Send + 'static,
+    {
+        let request = async_stream::stream! {
+            let watch_create_req = etcdserver::WatchCreateRequest {
+                key: key.into(),
+                ..Default::default()
+            };
+            let request_union = etcdserver::watch_request::RequestUnion::CreateRequest(watch_create_req);
+            let request = etcdserver::WatchRequest {
+                request_union: Some(request_union),
+            };
 
-        match response.metadata().get("grpc-status") {
-            Some(v) => {
-                if v == "0" {
-                    Ok(extract_values(response))
-                } else {
-                    Err(format!("grpc status code {:?}", v).into())
-                }
-            }
-            None => Ok(extract_values(response)),
-        }
+            yield request;
+        };
+
+        let response = self.watch_client.watch(request).await?;
+        let inbound = response.into_inner();
+
+        Ok(inbound)
+    }
+
+    pub async fn status(&mut self) -> EtcdResult<etcdserver::StatusResponse> {
+        let request = etcdserver::StatusRequest {};
+        let response = self.status_client.status(request).await?;
+        Ok(response.into_inner())
+    }
+
+    pub async fn server_alarms(&mut self) -> EtcdResult<etcdserver::AlarmResponse> {
+        let mut request = etcdserver::AlarmRequest::default();
+        request.set_action(etcdserver::alarm_request::AlarmAction::Get);
+        let response = self.status_client.alarm(request).await?;
+        Ok(response.into_inner())
+    }
+
+    pub async fn cluster_members(&mut self) -> EtcdResult<etcdserver::MemberListResponse> {
+        let request = etcdserver::MemberListRequest {};
+        let response = self.cluster_client.member_list(request).await?;
+        Ok(response.into_inner())
     }
 }
 
