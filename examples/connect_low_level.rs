@@ -20,6 +20,16 @@ async fn run_kv() -> Result<(), Box<dyn Error>> {
 
     // Now we have the response, let's take a look at it.
     println!("{:#?}", response);
+
+    // Get the value back out
+    let request = etcd3::etcdserver::RangeRequest {
+        key: "foo".to_string().into_bytes(),
+        ..Default::default()
+    };
+    let response = client.range(request).await?;
+
+    println!("{:#?}", response);
+
     Ok(())
 }
 
