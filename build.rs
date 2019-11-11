@@ -1,12 +1,12 @@
-use std::path::PathBuf;
-
 fn main() {
-    let protos = &["proto/auth.proto", "proto/kv.proto", "proto/rpc.proto"]
-        .iter()
-        .map(PathBuf::from)
-        .collect::<Vec<_>>();
+    // Top level protobuf file, this includes the other files
+    let protos = &["proto/rpc.proto"];
 
-    match tonic_build::configure().compile(&protos, &[PathBuf::from("proto")]) {
+    match tonic_build::configure()
+        // Do not build the server files, as we are just writing a client
+        .build_server(false)
+        .compile(protos, &["proto"])
+    {
         Ok(_) => {}
         Err(e) => {
             panic!("{}", e);
