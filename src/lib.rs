@@ -1,15 +1,15 @@
 // Internal names, which are unfortunately named.
-mod mvccpb {
+pub mod mvccpb {
     // Proto file: kv.proto
     tonic::include_proto!("mvccpb");
 }
 
-mod authpb {
+pub mod authpb {
     // Proto file: auth.proto
     tonic::include_proto!("authpb");
 }
 
-mod etcdserver {
+pub mod etcdserver {
     // Proto file: rpc.proto
     tonic::include_proto!("etcdserverpb");
 }
