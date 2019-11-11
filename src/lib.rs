@@ -126,7 +126,7 @@ mod tests {
 
     #[tokio::test]
     async fn connecting_to_instance() {
-        let client = EtcdClient::connect("http://127.0.0.1:2379").await.unwrap();
+        let _client = EtcdClient::connect("http://127.0.0.1:2379").await.unwrap();
     }
 
     #[tokio::test]
@@ -136,6 +136,10 @@ mod tests {
         client.put("foo", "bar").await.unwrap();
         let result = client.get("foo").await.unwrap();
 
-        assert_eq!(result, vec!["bar".to_string().into_bytes()]);
+        assert_eq!(result.count, 1);
+
+        let kv = &result.kvs[0];
+        assert_eq!(kv.key, "foo".to_string().into_bytes());
+        assert_eq!(kv.value, "bar".to_string().into_bytes());
     }
 }
