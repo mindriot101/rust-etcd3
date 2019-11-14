@@ -1,7 +1,7 @@
+use std::collections::HashMap;
 use std::convert::TryInto;
 use tonic::codegen::StdError;
 use tonic::transport::Endpoint;
-use std::collections::HashMap;
 
 type EtcdResult<T> = Result<T, Box<dyn std::error::Error>>;
 
@@ -31,8 +31,19 @@ pub struct Range<'a, 'b, T> {
 }
 
 impl<'a, 'b> Range<'a, 'b, tonic::transport::channel::Channel> {
-    pub async fn put(&mut self, value: &str) -> EtcdResult<()> {
-        self.client.put(self.start, value).await?;
+    pub async fn put<S>(&mut self, value: S) -> EtcdResult<()>
+    where
+        S: Into<String>,
+    {
+        let request = etcdserver::PutRequest {
+            key: self.start.to_string().into_bytes(),
+            value: value.into().into_bytes(),
+            prev_kv: true,
+            ..Default::default()
+        };
+
+        let _response = self.client.kv_client.put(request).await?;
+        // TODO: check the response for errors
         Ok(())
     }
 
@@ -104,7 +115,6 @@ impl EtcdClient<tonic::transport::channel::Channel> {
             client: self,
         }
     }
-
 
     pub(crate) async fn put<K: Into<Vec<u8>>, V: Into<Vec<u8>>>(
         &mut self,
