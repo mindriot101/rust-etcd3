@@ -7,6 +7,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut client = EtcdClient::connect("http://127.0.0.1:2379").await?;
 
     // KV
+    /*
     client.put("foo", "bar").await?;
     let result = client.get("foo").await?;
     println!("{:#?}", result);
@@ -28,6 +29,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     while let Some(msg) = stream.message().await? {
         println!("{:#?}", msg);
     }
+    */
 
     Ok(())
 }

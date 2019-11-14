@@ -1,0 +1,25 @@
+version: "2"
+services:
+  etcd:
+    image: quay.io/coreos/etcd:v3.4.3
+    command: /usr/local/bin/etcd -advertise-client-urls=http://0.0.0.0:2379 -listen-client-urls=http://0.0.0.0:2379
+    environment:
+      ETCDCTL_API: 3
+    ports:
+      - "2379:2379"
+        # rust:
+        #   build: .
+        #   environment:
+        #     RUST_BACKTRACE: 1
+        #     RUST_TEST_THREADS: 1
+        #     HOSTNAME: rust
+        #   links:
+        #     - etcd
+        #   working_dir: /source
+        #   volumes:
+        #     - .:/source
+        #     - cargo_git:/root/.cargo/git
+        #     - cargo_registry:/root/.cargo/registry
+        # volumes:
+        #   cargo_git: {}
+        #   cargo_registry: {}

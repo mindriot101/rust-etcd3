@@ -1,6 +1,7 @@
 use std::convert::TryInto;
 use tonic::codegen::StdError;
 use tonic::transport::Endpoint;
+use std::collections::HashMap;
 
 type EtcdResult<T> = Result<T, Box<dyn std::error::Error>>;
 
@@ -22,10 +23,49 @@ pub mod etcdserver {
 
 use etcdserver::client;
 
+/// Range of keys
+pub struct Range<'a, 'b, T> {
+    start: &'b str,
+    end: Option<&'b str>,
+    client: &'a mut EtcdClient<T>,
+}
+
+impl<'a, 'b> Range<'a, 'b, tonic::transport::channel::Channel> {
+    pub async fn put(&mut self, value: &str) -> EtcdResult<()> {
+        self.client.put(self.start, value).await?;
+        Ok(())
+    }
+
+    pub async fn get(&mut self) -> EtcdResult<HashMap<String, String>> {
+        let request = etcdserver::RangeRequest {
+            key: self.start.to_string().into_bytes(),
+            range_end: match self.end {
+                Some(s) => s.to_string().into_bytes(),
+                None => "".to_string().into_bytes(),
+            },
+            ..Default::default()
+        };
+        let response = self.client.kv_client.range(request).await?;
+        let range_response = response.into_inner();
+
+        let mut out = HashMap::new();
+        range_response.kvs.iter().for_each(|kv| {
+            let key = std::str::from_utf8(&kv.key).unwrap();
+            let value = std::str::from_utf8(&kv.value).unwrap();
+
+            out.insert(key.to_string(), value.to_string());
+        });
+
+        Ok(out)
+    }
+}
+
 /// Etcd client
 pub struct EtcdClient<T> {
-    kv_client: client::KvClient<T>,
+    auth_client: client::AuthClient<T>,
     cluster_client: client::ClusterClient<T>,
+    kv_client: client::KvClient<T>,
+    lease_client: client::LeaseClient<T>,
     status_client: client::MaintenanceClient<T>,
     watch_client: client::WatchClient<T>,
 }
@@ -36,20 +76,37 @@ impl EtcdClient<tonic::transport::channel::Channel> {
         D: TryInto<Endpoint> + Clone,
         D::Error: Into<StdError>,
     {
-        let kv_client = client::KvClient::connect(dst.clone()).await?;
+        let auth_client = client::AuthClient::connect(dst.clone()).await?;
         let cluster_client = client::ClusterClient::connect(dst.clone()).await?;
+        let kv_client = client::KvClient::connect(dst.clone()).await?;
+        let lease_client = client::LeaseClient::connect(dst.clone()).await?;
         let status_client = client::MaintenanceClient::connect(dst.clone()).await?;
-        let watch_client = client::WatchClient::connect(dst).await?;
+        let watch_client = client::WatchClient::connect(dst.clone()).await?;
 
         Ok(Self {
-            kv_client,
+            auth_client,
             cluster_client,
+            kv_client,
+            lease_client,
             status_client,
             watch_client,
         })
     }
 
-    pub async fn put<K: Into<Vec<u8>>, V: Into<Vec<u8>>>(
+    pub fn range<'a, 'b>(
+        &'a mut self,
+        start: &'b str,
+        end: Option<&'b str>,
+    ) -> Range<'a, 'b, tonic::transport::channel::Channel> {
+        Range {
+            start,
+            end,
+            client: self,
+        }
+    }
+
+
+    pub(crate) async fn put<K: Into<Vec<u8>>, V: Into<Vec<u8>>>(
         &mut self,
         key: K,
         value: V,
@@ -74,6 +131,7 @@ impl EtcdClient<tonic::transport::channel::Channel> {
         Ok(response.into_inner())
     }
 
+    /*
     pub async fn watch<K>(
         &mut self,
         key: K,
@@ -118,6 +176,7 @@ impl EtcdClient<tonic::transport::channel::Channel> {
         let response = self.cluster_client.member_list(request).await?;
         Ok(response.into_inner())
     }
+    */
 }
 
 #[cfg(test)]
@@ -132,14 +191,12 @@ mod tests {
     #[tokio::test]
     async fn test_putting_and_getting_a_value() {
         let mut client = EtcdClient::connect("http://127.0.0.1:2379").await.unwrap();
+        let mut range = client.range("foo", None);
 
-        client.put("foo", "bar").await.unwrap();
-        let result = client.get("foo").await.unwrap();
+        range.put("bar").await.unwrap();
 
-        assert_eq!(result.count, 1);
+        let keys = range.get().await.unwrap();
 
-        let kv = &result.kvs[0];
-        assert_eq!(kv.key, "foo".to_string().into_bytes());
-        assert_eq!(kv.value, "bar".to_string().into_bytes());
+        assert_eq!(keys["foo"], "bar");
     }
 }

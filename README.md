@@ -1,10 +1,12 @@
 # Etcd V3 in Rust
 
+Uses bleeding edge version of tokio to support async/await.
+
 ## Features
 
 ### KV
-* [ ] get ranges
-* [ ] put value at key
+* [x] get ranges
+* [x] put value at key
 * [ ] delete range
 * [ ] start transaction
 * [ ] compact event history
