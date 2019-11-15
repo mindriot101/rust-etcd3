@@ -1,7 +1,7 @@
-use std::collections::HashMap;
 use std::convert::TryInto;
 use tonic::codegen::StdError;
 use tonic::transport::Endpoint;
+use std::collections::HashMap;
 
 type EtcdResult<T> = Result<T, Box<dyn std::error::Error>>;
 
@@ -32,8 +32,7 @@ pub struct Range<'a, 'b, T> {
 
 impl<'a, 'b> Range<'a, 'b, tonic::transport::channel::Channel> {
     pub async fn put<S>(&mut self, value: S) -> EtcdResult<()>
-    where
-        S: Into<String>,
+    where S: Into<String>
     {
         let request = etcdserver::PutRequest {
             key: self.start.to_string().into_bytes(),
@@ -68,6 +67,20 @@ impl<'a, 'b> Range<'a, 'b, tonic::transport::channel::Channel> {
         });
 
         Ok(out)
+    }
+
+    pub async fn delete(mut self) -> EtcdResult<()> {
+        let request = etcdserver::DeleteRangeRequest {
+            key: self.start.to_string().into_bytes(),
+            range_end: match self.end {
+                Some(s) => s.to_string().into_bytes(),
+                None => "".to_string().into_bytes(),
+            },
+            ..Default::default()
+        };
+
+        let response = self.client.kv_client.delete_range(request).await?;
+        Ok(())
     }
 }
 
@@ -115,6 +128,7 @@ impl EtcdClient<tonic::transport::channel::Channel> {
             client: self,
         }
     }
+
 
     pub(crate) async fn put<K: Into<Vec<u8>>, V: Into<Vec<u8>>>(
         &mut self,
@@ -199,7 +213,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_putting_and_getting_a_value() {
+    async fn test_ranges() {
         let mut client = EtcdClient::connect("http://127.0.0.1:2379").await.unwrap();
         let mut range = client.range("foo", None);
 
@@ -208,5 +222,13 @@ mod tests {
         let keys = range.get().await.unwrap();
 
         assert_eq!(keys["foo"], "bar");
+
+        // Test delete a range
+        range.delete().await.unwrap();
+
+        // Have to get the range again as `delete` drops the range.
+        let mut range = client.range("foo", None);
+        let keys = range.get().await.unwrap();
+        assert!(keys.is_empty());
     }
 }
