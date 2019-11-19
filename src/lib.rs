@@ -159,6 +159,7 @@ impl EtcdClient<tonic::transport::channel::Channel> {
         Ok(inbound)
     }
 
+    /*
     pub async fn status(&mut self) -> EtcdResult<etcdserver::StatusResponse> {
         let request = etcdserver::StatusRequest {};
         let response = self.status_client.status(request).await?;
@@ -207,5 +208,24 @@ mod tests {
         let mut range = client.range("foo", None);
         let keys = range.get().await.unwrap();
         assert!(keys.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_watching() {
+        let mut client = EtcdClient::connect("http://127.0.0.1:2379").await.unwrap();
+
+        let mut range = client.range("foo", None);
+
+        let mut rx = client.watch("foo").await.unwrap();
+
+        let mut counter: i32 = 0;
+        tokio::spawn(async move {
+            while let Some(_val) = rx.next().await {
+                counter += 1;
+            }
+        });
+
+        range.put("bar").await.unwrap();
+        assert_eq!(counter, 1);
     }
 }
