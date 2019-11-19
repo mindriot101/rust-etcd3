@@ -7,12 +7,12 @@ Uses bleeding edge version of tokio to support async/await.
 ### KV
 * [x] get ranges
 * [x] put value at key
-* [ ] delete range
+* [x] delete range
 * [ ] start transaction
 * [ ] compact event history
 
 ### Watch
-* [ ] watch events
+* [x] watch events
 
 ### Lease
 * [ ] grant a lease
