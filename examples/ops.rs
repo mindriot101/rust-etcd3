@@ -4,7 +4,7 @@ use etcd3::EtcdClient;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let mut client = EtcdClient::connect("http://127.0.0.1:2379").await?;
+    let _client = EtcdClient::connect("http://127.0.0.1:2379").await?;
 
     // KV
     /*

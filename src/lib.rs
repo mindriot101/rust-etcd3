@@ -69,7 +69,7 @@ impl<'a, 'b> Range<'a, 'b, tonic::transport::channel::Channel> {
         Ok(out)
     }
 
-    pub async fn delete(mut self) -> EtcdResult<()> {
+    pub async fn delete(self) -> EtcdResult<()> {
         let request = etcdserver::DeleteRangeRequest {
             key: self.start.to_string().into_bytes(),
             range_end: match self.end {
@@ -79,17 +79,21 @@ impl<'a, 'b> Range<'a, 'b, tonic::transport::channel::Channel> {
             ..Default::default()
         };
 
-        let response = self.client.kv_client.delete_range(request).await?;
+        let _response = self.client.kv_client.delete_range(request).await?;
         Ok(())
     }
 }
 
 /// Etcd client
 pub struct EtcdClient<T> {
+    #[allow(dead_code)]
     auth_client: client::AuthClient<T>,
+    #[allow(dead_code)]
     cluster_client: client::ClusterClient<T>,
     kv_client: client::KvClient<T>,
+    #[allow(dead_code)]
     lease_client: client::LeaseClient<T>,
+    #[allow(dead_code)]
     status_client: client::MaintenanceClient<T>,
     watch_client: client::WatchClient<T>,
 }
