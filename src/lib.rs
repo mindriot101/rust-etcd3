@@ -212,20 +212,41 @@ mod tests {
 
     #[tokio::test]
     async fn test_watching() {
+        use futures::channel::oneshot;
+        use std::sync::atomic::{AtomicBool, Ordering};
+        use std::sync::Arc;
+
         let mut client = EtcdClient::connect("http://127.0.0.1:2379").await.unwrap();
 
-        let mut range = client.range("foo", None);
+        // Get a stream of events from etcd for the "foo" key
+        let mut stream = client.watch("foo").await.unwrap();
 
-        let mut rx = client.watch("foo").await.unwrap();
+        // Channel coordinates the watch task, to wait until the value has been seen, then end the
+        // task. This ensures we do not need sleeps in the test, but that the two separate spawned
+        // tasks can run concurrently.
+        let (tx, mut rx) = oneshot::channel();
 
-        let mut counter: i32 = 0;
+        // Have we seen a change yet?
+        let seen = Arc::new(AtomicBool::new(false));
+        let cp = seen.clone();
+
+        // Spawn a task to poll any changes
         tokio::spawn(async move {
-            while let Some(_val) = rx.next().await {
-                counter += 1;
+            while let Some(_val) = stream.message().await.unwrap() {
+                cp.store(true, Ordering::SeqCst);
+                tx.send(true).unwrap();
+                break;
             }
         });
 
+        // Get a range so we can change the "foo" node value
+        let mut range = client.range("foo", None);
         range.put("bar").await.unwrap();
-        assert_eq!(counter, 1);
+
+        // Wait until the task finishes
+        rx.try_recv().unwrap();
+
+        // Check that we've seen the change
+        assert!(seen.load(Ordering::SeqCst));
     }
 }
