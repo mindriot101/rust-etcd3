@@ -133,33 +133,6 @@ impl EtcdClient<tonic::transport::channel::Channel> {
         }
     }
 
-
-    pub(crate) async fn put<K: Into<Vec<u8>>, V: Into<Vec<u8>>>(
-        &mut self,
-        key: K,
-        value: V,
-    ) -> EtcdResult<etcdserver::PutResponse> {
-        let request = etcdserver::PutRequest {
-            key: key.into(),
-            value: value.into(),
-            prev_kv: true,
-            ..Default::default()
-        };
-
-        let response = self.kv_client.put(request).await?;
-        Ok(response.into_inner())
-    }
-
-    pub async fn get<K: Into<Vec<u8>>>(&mut self, key: K) -> EtcdResult<etcdserver::RangeResponse> {
-        let request = etcdserver::RangeRequest {
-            key: key.into(),
-            ..Default::default()
-        };
-        let response = self.kv_client.range(request).await?;
-        Ok(response.into_inner())
-    }
-
-    /*
     pub async fn watch<K>(
         &mut self,
         key: K,
