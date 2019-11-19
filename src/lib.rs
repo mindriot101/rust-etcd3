@@ -3,7 +3,7 @@ use tonic::codegen::StdError;
 use tonic::transport::Endpoint;
 use std::collections::HashMap;
 
-type EtcdResult<T> = Result<T, Box<dyn std::error::Error>>;
+pub type EtcdResult<T> = Result<T, Box<dyn std::error::Error>>;
 
 // Internal names, which are unfortunately named.
 pub mod mvccpb {
