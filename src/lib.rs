@@ -84,11 +84,23 @@ impl<'a, 'b> Range<'a, 'b, tonic::transport::channel::Channel> {
     }
 }
 
+/// Cluster information
+pub struct Cluster<'a, T> {
+    client: &'a mut EtcdClient<T>,
+}
+
+impl<'a> Cluster<'a, tonic::transport::channel::Channel> {
+    pub async fn members(&mut self) -> EtcdResult<Vec<etcdserver::Member>> {
+        let request = etcdserver::MemberListRequest {};
+        let response = self.client.cluster_client.member_list(request).await?;
+        Ok(response.into_inner().members)
+    }
+}
+
 /// Etcd client
 pub struct EtcdClient<T> {
     #[allow(dead_code)]
     auth_client: client::AuthClient<T>,
-    #[allow(dead_code)]
     cluster_client: client::ClusterClient<T>,
     kv_client: client::KvClient<T>,
     #[allow(dead_code)]
@@ -179,6 +191,12 @@ impl EtcdClient<tonic::transport::channel::Channel> {
         Ok(response.into_inner())
     }
     */
+
+    pub fn cluster<'a>(&'a mut self) -> Cluster<'a, tonic::transport::channel::Channel> {
+        Cluster {
+            client: self,
+        }
+    }
 }
 
 #[cfg(test)]
@@ -248,5 +266,15 @@ mod tests {
 
         // Check that we've seen the change
         assert!(seen.load(Ordering::SeqCst));
+    }
+
+    #[tokio::test]
+    async fn test_listing_members() {
+        // There is only one member in the test cluster, so we check this.
+        let mut client = EtcdClient::connect("http://127.0.0.1:2379").await.unwrap();
+
+        let mut cluster_info = client.cluster();
+        let members = cluster_info.members().await.unwrap();
+        assert_eq!(members.len(), 1);
     }
 }

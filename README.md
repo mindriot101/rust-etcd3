@@ -25,7 +25,7 @@ Uses bleeding edge version of tokio to support async/await.
 * [ ] add a member to the cluster
 * [ ] remove a member from the cluster
 * [ ] update member configuration
-* [ ] list members in the cluster
+* [x] list members in the cluster
 * [ ] promote a member to raft voting member
 
 ### Maintenance
